@@ -27,7 +27,8 @@ const VOTE_MUTATION = gql`
 const Link = props => {
   const {
     link: { id, description, url, votes, postedBy, createdAt },
-    index
+    index,
+    updateStoreAfterVote
   } = props;
   const authToken = localStorage.getItem(AUTH_TOKEN);
 
@@ -39,6 +40,9 @@ const Link = props => {
           <Mutation
             mutation={VOTE_MUTATION}
             variables={{ linkId: id }}
+            update={(store, { data: { vote } }) =>
+              updateStoreAfterVote(store, vote, id)
+            }
           >
             {voteMutation => (
               <div className="ml1 gray f11" onClick={voteMutation}>
