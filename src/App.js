@@ -4,6 +4,7 @@ import "./App.css";
 import Header from "./components/Header/Header";
 import LinkList from "./components/LinkList/LinkList";
 import CreateLink from "./components/CreateLink/CreateLink";
+import Login from "./components/Login/Login";
 
 function App() {
   return (
@@ -13,6 +14,7 @@ function App() {
         <Switch>
           <Route exact path="/" component={LinkList} />
           <Route exact path="/create" component={CreateLink} />
+          <Route exact path="/login" component={Login} />
         </Switch>
       </div>
     </div>
