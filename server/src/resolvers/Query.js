@@ -22,8 +22,14 @@ async function feed(parent, args, context) {
     orderBy: args.orderBy,
   })
   return {
+    id: 1,
     count,
-    links,
+    links: links.map(link => ({
+      ...link,
+      feed: {
+        id: 1
+      }
+    })),
   }
 }
 
