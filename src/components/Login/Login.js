@@ -38,7 +38,6 @@ const Login = props => {
     name: ""
   });
   const { login, email, password, name } = userData;
-  console.log(userData);
 
   const _confirm = async data => {
     const { token } = login ? data.login : data.signup
