@@ -3,49 +3,59 @@ import Link from "../Link/Link";
 import { gql } from "apollo-boost";
 import { Query } from "react-apollo";
 
+const linkFragment = gql`
+  fragment FeedLink on Link {
+    id
+    createdAt
+    url
+    description
+    votes {
+      id
+      user {
+        id
+      }
+    }
+    postedBy {
+      id
+      name
+    }
+  }
+`;
+
 export const FEED_QUERY = gql`
   {
     feed {
       links {
-        id
-        createdAt
-        url
-        description
-        votes {
-          id
-          user {
-            id
-          }
-        }
-        postedBy {
-          id
-          name
-        }
+        ...FeedLink
       }
     }
   }
+  ${linkFragment}
 `;
 
 const NEW_LINKS_SUBSCRIPTION = gql`
   subscription {
     newLink {
+      ...FeedLink
+    }
+  }
+  ${linkFragment}
+`;
+
+const NEW_VOTES_SUBSCRIPTION = gql`
+  subscription {
+    newVote {
       id
-      url
-      description
-      createdAt
-      postedBy {
-        id
-        name
+      link {
+        ...FeedLink
       }
-      votes {
+      user {
         id
-        user {
-          id
-        }
       }
     }
   }
-`
+  ${linkFragment}
+`;
 
 const updateCacheAfterVote = (store, createVote, linkId) => {
   const data = store.readQuery({ query: FEED_QUERY });
@@ -72,8 +82,14 @@ const subscribeToNewLinks = subscribeToMore => {
           count: prev.feed.links.length + 1,
           __typename: prev.feed.__typename
         }
-      }
+      };
     }
+  });
+};
+
+const subscribeToNewVotes = subscribeToMore => {
+  subscribeToMore({
+    document: NEW_VOTES_SUBSCRIPTION
   });
 };
 
@@ -85,6 +101,7 @@ const LinkList = props => {
         if (error) return <p>Error</p>;
 
         subscribeToNewLinks(subscribeToMore);
+        subscribeToNewVotes(subscribeToMore);
 
         const linksToRender = data.feed.links;
 
