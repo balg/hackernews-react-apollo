@@ -2,6 +2,8 @@ import React from "react";
 import Link from "../Link/Link";
 import { gql } from "apollo-boost";
 import { Query } from "react-apollo";
+import { LINKS_PER_PAGE } from "../../constants";
+import Paging from "./Paging/Paging";
 
 const linkFragment = gql`
   fragment FeedLink on Link {
@@ -23,11 +25,12 @@ const linkFragment = gql`
 `;
 
 export const FEED_QUERY = gql`
-  {
-    feed {
+  query FeedQuery($first: Int, $skip: Int, $orderBy: LinkOrderByInput) {
+    feed(first: $first, skip: $skip, orderBy: $orderBy) {
       links {
         ...FeedLink
       }
+      count
     }
   }
   ${linkFragment}
@@ -94,8 +97,28 @@ const subscribeToNewVotes = subscribeToMore => {
 };
 
 const LinkList = props => {
+  const isNewPage = props.location.pathname.includes("new");
+  const page = parseInt(props.match.params.page, 10);
+  const firstIndexOnPage = page ? (page - 1) * LINKS_PER_PAGE : 0;
+
+  const getQueryVariables = () => {
+    const skip = isNewPage ? (page - 1) * LINKS_PER_PAGE : 0;
+    const first = isNewPage ? LINKS_PER_PAGE : 100;
+    const orderBy = isNewPage ? "createdAt_DESC" : null;
+    return { first, skip, orderBy };
+  };
+
+  const getLinksToRender = data => {
+    if (isNewPage) {
+      return data.feed.links
+    }
+    const rankedLinks = [...data.feed.links]
+    rankedLinks.sort((l1, l2) => l2.votes.length - l1.votes.length)
+    return rankedLinks
+  }
+
   return (
-    <Query query={FEED_QUERY}>
+    <Query query={FEED_QUERY} variables={getQueryVariables()}>
       {({ loading, error, data, subscribeToMore }) => {
         if (loading) return <p>Fetching...</p>;
         if (error) return <p>Error</p>;
@@ -103,19 +126,22 @@ const LinkList = props => {
         subscribeToNewLinks(subscribeToMore);
         subscribeToNewVotes(subscribeToMore);
 
-        const linksToRender = data.feed.links;
+        const linksToRender = getLinksToRender(data);
 
         return (
-          <div>
+          <>
             {linksToRender.map((link, index) => (
               <Link
                 key={link.id}
                 link={link}
-                index={index}
+                index={index + firstIndexOnPage}
                 updateStoreAfterVote={updateCacheAfterVote}
               />
             ))}
-          </div>
+            {isNewPage && (
+              <Paging previousPage={() => {}} nextPage={() => {}} />
+            )}
+          </>
         );
       }}
     </Query>
