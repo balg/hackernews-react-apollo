@@ -26,6 +26,27 @@ export const FEED_QUERY = gql`
   }
 `;
 
+const NEW_LINKS_SUBSCRIPTION = gql`
+  subscription {
+    newLink {
+      id
+      url
+      description
+      createdAt
+      postedBy {
+        id
+        name
+      }
+      votes {
+        id
+        user {
+          id
+        }
+      }
+    }
+  }
+`
+
 const updateCacheAfterVote = (store, createVote, linkId) => {
   const data = store.readQuery({ query: FEED_QUERY });
 
@@ -35,12 +56,35 @@ const updateCacheAfterVote = (store, createVote, linkId) => {
   store.writeQuery({ query: FEED_QUERY, data });
 };
 
+const subscribeToNewLinks = subscribeToMore => {
+  subscribeToMore({
+    document: NEW_LINKS_SUBSCRIPTION,
+    updateQuery: (prev, { subscriptionData }) => {
+      if (!subscriptionData.data) return prev;
+      const newLink = subscriptionData.data.newLink;
+      const exists = prev.feed.links.find(({ id }) => id === newLink.id);
+      if (exists) return prev;
+
+      return {
+        ...prev,
+        feed: {
+          links: [newLink, ...prev.feed.links],
+          count: prev.feed.links.length + 1,
+          __typename: prev.feed.__typename
+        }
+      }
+    }
+  });
+};
+
 const LinkList = props => {
   return (
     <Query query={FEED_QUERY}>
-      {({ loading, error, data }) => {
+      {({ loading, error, data, subscribeToMore }) => {
         if (loading) return <p>Fetching...</p>;
         if (error) return <p>Error</p>;
+
+        subscribeToNewLinks(subscribeToMore);
 
         const linksToRender = data.feed.links;
 
