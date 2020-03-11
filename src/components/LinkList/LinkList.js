@@ -60,15 +60,6 @@ const NEW_VOTES_SUBSCRIPTION = gql`
   ${linkFragment}
 `;
 
-const updateCacheAfterVote = (store, createVote, linkId) => {
-  const data = store.readQuery({ query: FEED_QUERY });
-
-  const votedLink = data.feed.links.find(link => link.id === linkId);
-  votedLink.votes = createVote.link.votes;
-
-  store.writeQuery({ query: FEED_QUERY, data });
-};
-
 const subscribeToNewLinks = subscribeToMore => {
   subscribeToMore({
     document: NEW_LINKS_SUBSCRIPTION,
@@ -100,25 +91,45 @@ const LinkList = props => {
   const isNewPage = props.location.pathname.includes("new");
   const page = parseInt(props.match.params.page, 10);
   const firstIndexOnPage = page ? (page - 1) * LINKS_PER_PAGE : 0;
-
-  const getQueryVariables = () => {
-    const skip = isNewPage ? (page - 1) * LINKS_PER_PAGE : 0;
-    const first = isNewPage ? LINKS_PER_PAGE : 100;
-    const orderBy = isNewPage ? "createdAt_DESC" : null;
-    return { first, skip, orderBy };
-  };
+  const skip = isNewPage ? (page - 1) * LINKS_PER_PAGE : 0;
+  const first = isNewPage ? LINKS_PER_PAGE : 100;
+  const orderBy = isNewPage ? "createdAt_DESC" : null;
 
   const getLinksToRender = data => {
     if (isNewPage) {
-      return data.feed.links
+      return data.feed.links;
     }
-    const rankedLinks = [...data.feed.links]
-    rankedLinks.sort((l1, l2) => l2.votes.length - l1.votes.length)
-    return rankedLinks
-  }
+    const rankedLinks = [...data.feed.links];
+    rankedLinks.sort((l1, l2) => l2.votes.length - l1.votes.length);
+    return rankedLinks;
+  };
+
+  const nextPage = data => {
+    if (page <= data.feed.count / LINKS_PER_PAGE) {
+      props.history.push(`/new/${page + 1}`);
+    }
+  };
+
+  const prevPage = data => {
+    if (page > 1) {
+      props.history.push(`/new/${page - 1}`);
+    }
+  };
+
+  const updateCacheAfterVote = (store, createVote, linkId) => {
+    const data = store.readQuery({
+      query: FEED_QUERY,
+      variables: { first, skip, orderBy }
+    });
+
+    const votedLink = data.feed.links.find(link => link.id === linkId);
+    votedLink.votes = createVote.link.votes;
+
+    store.writeQuery({ query: FEED_QUERY, data });
+  };
 
   return (
-    <Query query={FEED_QUERY} variables={getQueryVariables()}>
+    <Query query={FEED_QUERY} variables={{ first, skip, orderBy }}>
       {({ loading, error, data, subscribeToMore }) => {
         if (loading) return <p>Fetching...</p>;
         if (error) return <p>Error</p>;
@@ -139,7 +150,14 @@ const LinkList = props => {
               />
             ))}
             {isNewPage && (
-              <Paging previousPage={() => {}} nextPage={() => {}} />
+              <Paging
+                previousPage={() => {
+                  prevPage(data);
+                }}
+                nextPage={() => {
+                  nextPage(data);
+                }}
+              />
             )}
           </>
         );
